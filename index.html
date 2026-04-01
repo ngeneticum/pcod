@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BitPiX | Quantum Oracle & Arbitrage</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #00040a; --green: #00ff9f; --blue: #00e5ff; --gold: #ffd700; --red: #ff3e3e;
+            --font-mono: 'Share Tech Mono', monospace;
+        }
+        body { background: var(--bg); color: #e0f7fa; font-family: 'Exo 2', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 400px; background: rgba(5, 15, 30, 0.95); border-right: 1px solid rgba(0, 229, 255, 0.3); padding: 20px; display: flex; flex-direction: column; overflow-y: auto; }
+        .box { background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 229, 255, 0.2); padding: 12px; margin-bottom: 10px; border-radius: 4px; }
+        .gold-text { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
+        #heatmap { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; margin-top: 10px; background: rgba(0,255,159,0.05); padding: 5px; }
+        .dot { width: 18px; height: 18px; background: #001a1a; border-radius: 1px; transition: 0.3s; }
+        #main { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle, #0a1a2f 0%, #000 100%); }
+        canvas#radar { width: 450px; height: 450px; border-radius: 50%; border: 2px solid var(--blue); }
+        #ledger { height: 150px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.7em; background: #000; padding: 10px; border: 1px solid var(--green); color: var(--green); margin: 10px 0; }
+        input, button { width: 100%; background: none; border: 1px solid var(--green); color: var(--green); padding: 10px; margin-top: 5px; font-family: var(--font-mono); cursor: pointer; }
+        button:hover { background: var(--green); color: #000; }
+        #qr-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2 class="gold-text">AGENT 0: COMMAND</h2>
+    <div class="box">
+        <div>PI-RATE: <span id="pi-rate" class="gold-text">0.00000000</span> BTC</div>
+        <div style="font-size: 0.7em; opacity: 0.6;">GENETIC OWNER: ngeneticum@gmail.com</div>
+    </div>
+
+    <div class="box">
+        <div style="font-size:0.7em; margin-bottom:5px;">MEXC REAL-TIME (AVG):</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-family:var(--font-mono); font-size:0.75em;">
+            <div class="box" style="margin:0;">BTC: <b id="m-btc">$64,000</b></div>
+            <div class="box" style="margin:0;">TON: <b id="m-ton">7.20</b></div>
+        </div>
+    </div>
+
+    <div id="heatmap"></div>
+    <div id="total-tax" style="text-align:center; color:var(--gold); font-family:var(--font-mono); font-size: 0.8em; margin-top: 5px;">TAX COLLECTED: 0.0000 BPX</div>
+
+    <div id="ledger"></div>
+
+    <div class="box">
+        <input type="text" id="target-addr" placeholder="Адрес биржи (MEXC/Binance)">
+        <input type="number" id="target-amt" placeholder="Сумма вывода">
+        <button onclick="withdrawFunds()">ВЫВЕСТИ (GENERATE QR)</button>
+    </div>
+</div>
+
+<div id="main">
+    <canvas id="radar" width="512" height="512"></canvas>
+    <div style="margin-top:20px; font-family:var(--font-mono); color:var(--blue);">TIME AXIS: HOUSTON 31.03.2048 | 1d = 2048y</div>
+</div>
+
+<div id="qr-modal" onclick="this.style.display='none'">
+    <div id="qrcode" style="background:#fff; padding:10px;"></div>
+    <p class="gold-text">SCAN TO EXECUTE</p>
+</div>
+
+<script>
+    const PI_STR = "3141592653589793238462643383279502884197169399375105820974944592307816406286";
+    const GENESIS = new Date("2026-03-31T00:00:00").getTime();
+    let wallets = Array.from({length: 256}, () => ({ bpx: 10 }));
+    let totalTaxCollected = 0;
+
+    const hm = document.getElementById('heatmap');
+    for(let i=0; i<256; i++) {
+        let d = document.createElement('div');
+        d.className = 'dot'; d.id = `a-${i}`;
+        hm.appendChild(d);
+    }
+
+    function getPiRate() {
+        const sec = Math.floor((Date.now() - GENESIS) / 1000);
+        const idx = Math.abs(sec % (PI_STR.length - 8));
+        return parseFloat("0.000" + PI_STR.substring(idx, idx + 8));
+    }
+
+    function updateMarketSimulation() {
+        document.getElementById('m-btc').innerText = "$" + (64000 + Math.random()*100).toFixed(0);
+        document.getElementById('m-ton').innerText = (7.1 + Math.random()*0.2).toFixed(2);
+        document.getElementById('pi-rate').innerText = getPiRate().toFixed(8) + " BTC";
+    }
+
+    function executeArbitrage() {
+        const id = Math.floor(Math.random() * 256);
+        const profit = 0.001;
+        const tax = profit * 0.02; // 2% комиссия
+        totalTaxCollected += tax;
+        
+        document.getElementById(`a-${id}`).style.background = 'var(--gold)';
+        setTimeout(() => document.getElementById(`a-${id}`).style.background = '#001a1a', 300);
+        
+        document.getElementById('total-tax').innerText = `TAX COLLECTED: ${totalTaxCollected.toFixed(6)} BPX`;
+        logTx(`Agent #${id} arbitrage success. Tax sent to Geneticum Core.`);
+    }
+
+    function withdrawFunds() {
+        const addr = document.getElementById('target-addr').value;
+        const amt = document.getElementById('target-amt').value;
+        if(!addr || !amt) return;
+        
+        const qrc = document.getElementById('qrcode');
+        qrc.innerHTML = "";
+        new QRCode(qrc, { text: `bpx-transfer:${addr}:${amt}`, width: 180, height: 180 });
+        document.getElementById('qr-modal').style.display = 'flex';
+    }
+
+    function logTx(m) {
+        const l = document.getElementById('ledger');
+        l.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${m}</div>` + l.innerHTML;
+    }
+
+    function drawRadar() {
+        const ctx = document.getElementById('radar').getContext('2d');
+        const img = ctx.createImageData(512, 512);
+        for(let i=0; i<img.data.length; i+=4) {
+            const r = Math.random();
+            img.data[i] = 0; img.data[i+1] = r * 100; img.data[i+2] = r * 150;
+            img.data[i+3] = 255;
+        }
+        ctx.putImageData(img, 0, 0);
+    }
+
+    setInterval(() => {
+        drawRadar();
+        updateMarketSimulation();
+        if(Math.random() > 0.9) executeArbitrage();
+    }, 150);
+
+    logTx("Geneticum Protocol v1.1 Online.");
+</script>
+</body>
+</html>
