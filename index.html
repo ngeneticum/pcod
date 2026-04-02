@@ -3,171 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPiX | Quantum Oracle & Arbitrage</title>
+    <title>BPX Matrix | Multi-Asset Terminal</title>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;800&family=Exo+2:wght@300;600&display=swap" rel="stylesheet">
     <style>
-    :root {
-        --bg: #00040a; --green: #00ff9f; --blue: #00e5ff; --gold: #ffd700; --red: #ff3e3e;
-        --font-mono: 'Share Tech Mono', monospace;
-    }
-    body { 
-        background: var(--bg); color: #e0f7fa; 
-        font-family: 'Exo 2', sans-serif; margin: 0; 
-        display: flex; height: 100vh; overflow: hidden;
-        flex-direction: row; /* По умолчанию для ПК */
-    }
-
-    /* Адаптивность для мобильных */
-    @media (max-width: 900px) {
-        body { flex-direction: column; overflow-y: auto; }
-        #sidebar { 
-            width: 100% !important; 
-            max-width: 100% !important; 
-            height: auto !important; 
-            border-right: none !important;
-            border-bottom: 1px solid rgba(0, 229, 255, 0.3);
-            order: 2; /* Панель уходит вниз */
+        :root {
+            --bg: #000205; --neon: #00ff9f; --gold: #ffd700; --sol: #8c01ff; --text: #e0f7fa;
+            --font-mono: 'JetBrains Mono', monospace;
         }
-        #main { 
-            width: 100% !important; 
-            height: 60vh !important; 
-            order: 1; /* Радар сверху */
-        }
-        canvas#radar { width: 80vw !important; height: 80vw !important; }
-    }
+        body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SIDEBAR */
+        #sidebar { width: 380px; background: rgba(0, 5, 10, 0.98); border-right: 1px solid rgba(0, 255, 159, 0.2); padding: 15px; display: flex; flex-direction: column; z-index: 100; box-shadow: 5px 0 20px #000; overflow-y: auto; }
+        .box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 10px; margin-bottom: 8px; border-radius: 2px; position: relative; }
+        .box::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 2px; background: var(--neon); }
+        .gold { color: var(--gold); }
+        
+        /* ASSET GRID */
+        .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-family: var(--font-mono); font-size: 0.7em; }
+        .asset { padding: 5px; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,159,0.1); }
+        .asset b { color: var(--neon); }
+        .pump-fun { border-color: #ff00ff; color: #ff00ff; } /* Стиль для щиткоинов */
 
-    #sidebar { 
-        width: 400px; background: rgba(5, 15, 30, 0.95); 
-        border-right: 1px solid rgba(0, 229, 255, 0.3); 
-        padding: 20px; display: flex; flex-direction: column; 
-        z-index: 100; box-shadow: 10px 0 30px #000; 
-    }
-    
-    .box { background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 229, 255, 0.2); padding: 12px; margin-bottom: 10px; border-radius: 4px; }
-    .gold-text { color: var(--gold); text-shadow: 0 0 10px var(--gold); }
-    
-    #heatmap { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; margin-top: 10px; }
-    .dot { width: 100%; aspect-ratio: 1/1; background: #001a1a; border-radius: 1px; }
+        /* MAIN MATRIX */
+        #main { flex-grow: 1; display: flex; flex-direction: column; padding: 20px; background: #000; }
+        #matrix-view { flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; padding: 10px; background: rgba(0,255,159,0.02); border: 1px solid rgba(0,255,159,0.1); }
+        .agent-node { width: 100%; aspect-ratio: 1/1; background: #05100a; border: 1px solid #0a2015; transition: 0.2s; cursor: pointer; position: relative; }
+        .agent-node:hover { border-color: var(--neon); background: #0a3020; }
+        .active-node { background: var(--neon) !important; box-shadow: 0 0 10px var(--neon); }
 
-    #main { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle, #0a1a2f 0%, #000 100%); }
-    canvas#radar { max-width: 90%; max-height: 90%; border-radius: 50%; border: 2px solid var(--blue); }
-    
-    #ledger { height: 120px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.7em; background: #000; padding: 10px; border: 1px solid var(--green); color: var(--green); margin: 10px 0; }
-    input, button { background: none; border: 1px solid var(--green); color: var(--green); padding: 10px; margin-top: 5px; font-family: var(--font-mono); width: 100%; box-sizing: border-box; }
-</style>
+        /* MODULAR SECTIONS */
+        #radar-section { position: fixed; bottom: 20px; right: 20px; width: 150px; height: 150px; background: #000; border: 1px solid var(--neon); border-radius: 50%; opacity: 0.3; transition: 0.5s; cursor: pointer; overflow: hidden; }
+        #radar-section:hover { opacity: 1; width: 300px; height: 300px; }
+        canvas#radar { width: 100%; height: 100%; }
+
+        #ledger { height: 120px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.65em; color: #00ff9f; border-top: 1px solid #111; padding-top: 10px; }
+        
+        button { background: var(--neon); color: #000; border: none; padding: 10px; font-family: var(--font-mono); font-weight: 800; cursor: pointer; width: 100%; margin-top: 5px; clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%); }
+        button:hover { background: var(--gold); }
+
+        /* TABS */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 5px 15px; border-bottom: 2px solid #333; cursor: pointer; font-size: 0.8em; }
+        .tab.active { border-color: var(--neon); color: var(--neon); }
+    </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h2 class="gold-text">AGENT 0: COMMAND</h2>
+    <div id="ton-connect-btn" style="margin-bottom: 15px;"></div>
+    
     <div class="box">
-        <div>PI-RATE: <span id="pi-rate" class="gold-text">0.00000000</span> BTC</div>
-        <div style="font-size: 0.7em; opacity: 0.6;">GENETIC OWNER: ngeneticum@gmail.com</div>
+        <div style="font-size: 0.6em; opacity: 0.6;">MASTER WALLET:</div>
+        <div style="font-size: 0.55em; color: var(--gold);">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
     </div>
 
     <div class="box">
-        <div style="font-size:0.7em; margin-bottom:5px;">MEXC REAL-TIME (AVG):</div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-family:var(--font-mono); font-size:0.75em;">
-            <div class="box" style="margin:0;">BTC: <b id="m-btc">$64,000</b></div>
-            <div class="box" style="margin:0;">TON: <b id="m-ton">7.20</b></div>
+        <div class="asset-grid">
+            <div class="asset">BTC: <b id="p-btc">...</b></div>
+            <div class="asset">TON: <b id="p-ton">...</b></div>
+            <div class="asset">SOL: <b id="p-sol" style="color: var(--sol)">...</b></div>
+            <div class="asset">BPX: <b class="gold" id="p-bpx">...</b></div>
         </div>
     </div>
 
-    <div id="heatmap"></div>
-    <div id="total-tax" style="text-align:center; color:var(--gold); font-family:var(--font-mono); font-size: 0.8em; margin-top: 5px;">TAX COLLECTED: 0.0000 BPX</div>
+    <div class="box pump-fun">
+        <div style="font-size: 0.6em; color: #ff00ff; margin-bottom: 5px;">PUMP.FUN TOKENS ($):</div>
+        <div class="asset-grid">
+            <div class="asset">$PCOD: <b id="p-pcod">0.00</b></div>
+            <div class="asset">$GOS: <b id="p-gos">0.00</b></div>
+            <div class="asset">$GVM: <b id="p-gvm">0.00</b></div>
+            <div class="asset">$GNM: <b id="p-gnm">0.00</b></div>
+        </div>
+    </div>
 
     <div id="ledger"></div>
 
     <div class="box">
-        <input type="text" id="target-addr" placeholder="Адрес биржи (MEXC/Binance)">
-        <input type="number" id="target-amt" placeholder="Сумма вывода">
-        <button onclick="withdrawFunds()">ВЫВЕСТИ (GENERATE QR)</button>
+        <input type="text" id="target-addr" placeholder="Destination Addr" style="width:100%; background:none; border:1px solid #333; color:#fff; padding:5px; margin-bottom:5px; font-size:0.7em;">
+        <button onclick="executeWithdraw()">WITHDRAW ASSETS</button>
     </div>
 </div>
 
 <div id="main">
-    <canvas id="radar" width="512" height="512"></canvas>
-    <div style="margin-top:20px; font-family:var(--font-mono); color:var(--blue);">TIME AXIS: HOUSTON 31.03.2048 | 1d = 2048y</div>
+    <div class="tabs">
+        <div class="tab active">AGENT_MATRIX_256</div>
+        <div class="tab" onclick="alert('Syncing to Drive...')">CLOUD_STORAGE</div>
+        <div class="tab gold" onclick="openPumpFun()">PUMP_SWAP</div>
+    </div>
+    
+    <div id="matrix-view">
+        </div>
+
+    <div id="total-stats" style="margin-top: 15px; font-family: var(--font-mono); font-size: 0.7em;">
+        SYSTEM_LOAD: <span id="load">0%</span> | GENETIC_TAX: <span class="gold" id="tax-sum">0.0000 BPX</span>
+    </div>
 </div>
 
-<div id="qr-modal" onclick="this.style.display='none'">
-    <div id="qrcode" style="background:#fff; padding:10px;"></div>
-    <p class="gold-text">SCAN TO EXECUTE</p>
+<div id="radar-section">
+    <canvas id="radar" width="300" height="300"></canvas>
 </div>
 
 <script>
-    const PI_STR = "3141592653589793238462643383279502884197169399375105820974944592307816406286";
-    const GENESIS = new Date("2026-03-31T00:00:00").getTime();
-    let wallets = Array.from({length: 256}, () => ({ bpx: 10 }));
-    let totalTaxCollected = 0;
+    const MASTER = "UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ";
+    let agents = Array.from({length: 256}, (_, i) => ({ id: i, btc: 0, ton: 0, sol: 0, pcod: 0 }));
+    let totalTax = 0;
 
-    const hm = document.getElementById('heatmap');
+    // Инициализация Матрицы
+    const matrix = document.getElementById('matrix-view');
     for(let i=0; i<256; i++) {
-        let d = document.createElement('div');
-        d.className = 'dot'; d.id = `a-${i}`;
-        hm.appendChild(d);
+        let node = document.createElement('div');
+        node.className = 'agent-node';
+        node.id = `node-${i}`;
+        node.onclick = () => selectAgent(i);
+        matrix.appendChild(node);
     }
 
-    function getPiRate() {
-        const sec = Math.floor((Date.now() - GENESIS) / 1000);
-        const idx = Math.abs(sec % (PI_STR.length - 8));
-        return parseFloat("0.000" + PI_STR.substring(idx, idx + 8));
-    }
-
-    function updateMarketSimulation() {
-        document.getElementById('m-btc').innerText = "$" + (64000 + Math.random()*100).toFixed(0);
-        document.getElementById('m-ton').innerText = (7.1 + Math.random()*0.2).toFixed(2);
-        document.getElementById('pi-rate').innerText = getPiRate().toFixed(8) + " BTC";
-    }
-
-    function executeArbitrage() {
-        const id = Math.floor(Math.random() * 256);
-        const profit = 0.001;
-        const tax = profit * 0.02; // 2% комиссия
-        totalTaxCollected += tax;
+    // Симуляция цен
+    function updatePrices() {
+        document.getElementById('p-btc').innerText = (68000 + Math.random()*500).toFixed(0);
+        document.getElementById('p-ton').innerText = (7.25 + Math.random()*0.1).toFixed(2);
+        document.getElementById('p-sol').innerText = (145 + Math.random()*5).toFixed(2);
         
-        document.getElementById(`a-${id}`).style.background = 'var(--gold)';
-        setTimeout(() => document.getElementById(`a-${id}`).style.background = '#001a1a', 300);
-        
-        document.getElementById('total-tax').innerText = `TAX COLLECTED: ${totalTaxCollected.toFixed(6)} BPX`;
-        logTx(`Agent #${id} arbitrage success. Tax sent to Geneticum Core.`);
+        // Pump.fun токены (волатильность x10)
+        document.getElementById('p-pcod').innerText = (Math.random()*0.01).toFixed(6);
+        document.getElementById('p-gos').innerText = (Math.random()*0.005).toFixed(6);
     }
 
-    function withdrawFunds() {
+    function selectAgent(id) {
+        logTx(`ACCESSING AGENT_CORE #${id}... DATA SECURED.`);
+        document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('active-node'));
+        document.getElementById(`node-${id}`).classList.add('active-node');
+    }
+
+    function executeWithdraw() {
         const addr = document.getElementById('target-addr').value;
-        const amt = document.getElementById('target-amt').value;
-        if(!addr || !amt) return;
-        
-        const qrc = document.getElementById('qrcode');
-        qrc.innerHTML = "";
-        new QRCode(qrc, { text: `bpx-transfer:${addr}:${amt}`, width: 180, height: 180 });
-        document.getElementById('qr-modal').style.display = 'flex';
+        if(addr.length < 10) return alert("Invalid Address");
+        logTx(`REDIRECTING 2% TO MASTER ${MASTER.substring(0,6)}...`);
+        alert(`Transaction signed. Fee sent to Genetic Master.`);
     }
 
     function logTx(m) {
         const l = document.getElementById('ledger');
-        l.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${m}</div>` + l.innerHTML;
+        l.innerHTML = `<div>> ${m}</div>` + l.innerHTML;
     }
 
+    // Радар в углу
     function drawRadar() {
         const ctx = document.getElementById('radar').getContext('2d');
-        const img = ctx.createImageData(512, 512);
-        for(let i=0; i<img.data.length; i+=4) {
-            const r = Math.random();
-            img.data[i] = 0; img.data[i+1] = r * 100; img.data[i+2] = r * 150;
-            img.data[i+3] = 255;
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(0,0,300,300);
+        for(let i=0; i<5; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = '#00ff9f';
+            ctx.arc(150, 150, Math.random()*140, 0, Math.PI*2);
+            ctx.stroke();
         }
-        ctx.putImageData(img, 0, 0);
     }
 
     setInterval(() => {
+        updatePrices();
         drawRadar();
-        updateMarketSimulation();
-        if(Math.random() > 0.9) executeArbitrage();
-    }, 150);
+        if(Math.random() > 0.8) {
+            const randAgent = Math.floor(Math.random()*256);
+            document.getElementById(`node-${randAgent}`).style.background = '#00ff9f';
+            setTimeout(() => document.getElementById(`node-${randAgent}`).style.background = '#05100a', 200);
+        }
+        document.getElementById('load').innerText = Math.floor(Math.random()*100) + "%";
+    }, 500);
 
-    logTx("Geneticum Protocol v1.1 Online.");
+    // TON CONNECT
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: 'https://ngeneticum.github.io/tonconnect-manifest.json',
+        buttonRootId: 'ton-connect-btn'
+    });
 </script>
 </body>
 </html>
