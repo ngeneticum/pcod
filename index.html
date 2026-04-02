@@ -14,9 +14,9 @@
         #app { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
         
         /* ШАПКА */
-        header { padding: 10px 15px; display: flex; justify-content: space-between; font-size: 12px; color: var(--neon); z-index: 10; }
+        header { padding: 15px; display: flex; justify-content: space-between; font-size: 12px; color: var(--neon); background: #050505; border-bottom: 1px solid #111; }
 
-        /* МАТРИЦА (Центр) */
+        /* МАТРИЦА */
         #matrix { 
             flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); 
             gap: 2px; padding: 10px; background: #000;
@@ -28,103 +28,26 @@
         #side { 
             position: fixed; top: 0; left: 0; bottom: 0; width: 280px; 
             background: rgba(5, 5, 5, 0.98); border-right: 1px solid var(--neon);
-            transform: translateX(-100%); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000; padding: 20px; box-sizing: border-box;
+            transform: translateX(-100%); transition: 0.3s ease;
+            z-index: 1000; padding: 20px; box-sizing: border-box; box-shadow: 10px 0 30px #000;
         }
         #side.open { transform: translateX(0); }
 
-        /* КНОПКА МЕНЮ */
+        /* КНОПКА UI */
         #m-btn { 
-            position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px; 
+            position: fixed; bottom: 25px; left: 25px; width: 55px; height: 55px; 
             background: var(--neon); color: #000; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; cursor: pointer; z-index: 1100; box-shadow: 0 0 15px var(--neon);
+            font-weight: bold; cursor: pointer; z-index: 1100; box-shadow: 0 0 20px var(--neon);
         }
 
         /* КОНТЕНТ ПАНЕЛИ */
-        .card { border: 1px solid #222; padding: 10px; margin-bottom: 10px; font-size: 11px; }
+        .card { border-left: 3px solid var(--neon); background: #080808; padding: 10px; margin-bottom: 12px; }
         .gold { color: var(--gold); }
-        #log { height: 80px; overflow: auto; color: var(--neon); font-size: 10px; margin: 10px 0; border-top: 1px solid #222; padding-top: 5px; }
+        #log { height: 100px; overflow: auto; color: var(--neon); font-size: 10px; margin: 10px 0; border: 1px solid #222; padding: 5px; }
         
-        input, button { width: 100%; padding: 10px; margin: 5px 0; background: #000; border: 1px solid var(--neon); color: #fff; font-family: monospace; }
-        button { background: var(--neon); color: #000; font-weight: bold; border: none; }
+        input { width: 100%; padding: 10px; margin: 5px 0; background: #000; border: 1px solid #333; color: #fff; font-size: 12px; }
+        button { width: 100%; padding: 12px; margin-top: 10px; background: var(--neon); color: #000; font-weight: bold; border: none; cursor: pointer; }
 
         /* QR */
-        #q-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 2000; }
-    </style>
-</head>
-<body>
-
-<div id="m-btn" onclick="document.getElementById('side').classList.toggle('open')">UI</div>
-
-<div id="side">
-    <div id="ton-connect-btn"></div>
-    <div class="card" style="margin-top:15px;">
-        <div style="opacity:0.5">MASTER_VAULT:</div>
-        <div class="gold" style="word-break:break-all; font-size:9px;">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
-    </div>
-    <div class="card">
-        BTC: <span id="p-btc">68400</span> | SOL: 145<br>
-        BPX_INDEX: <span class="gold">3.1415</span>
-    </div>
-    <div id="log"></div>
-    <input type="text" id="adr" placeholder="Address">
-    <input type="number" id="amt" placeholder="Amount">
-    <button onclick="withdraw()">SEND ASSETS (2%)</button>
-</div>
-
-<div id="app">
-    <header>
-        <div>AGENT_MATRIX_256</div>
-        <div id="load">LOAD: 0%</div>
-    </header>
-    <div id="matrix"></div>
-    <div style="padding: 10px; font-size: 8px; opacity: 0.3; text-align: center;">UQC58...SYqXQ | HOUSTON_GENESIS_2048</div>
-</div>
-
-<div id="q-ov" onclick="this.style.display='none'"><div id="qrc" style="background:#fff; padding:10px;"></div></div>
-
-<script>
-    // 1. Создаем сетку
-    const m = document.getElementById('matrix');
-    for(let i=0; i<256; i++) {
-        const d = document.createElement('div');
-        d.className = 'n'; d.id = 'n'+i;
-        m.appendChild(d);
-    }
-
-    // 2. Логика транзакции
-    function withdraw() {
-        const a = document.getElementById('adr').value;
-        const v = document.getElementById('amt').value;
-        if(!a || !v) return;
-        document.getElementById('qrc').innerHTML = "";
-        new QRCode(document.getElementById('qrc'), { text: `ton://transfer/${a}?amount=${v*1e9}`, width: 180, height: 180 });
-        document.getElementById('q-ov').style.display = 'flex';
-        addLog(`TX_INIT: ${v} to ${a.slice(0,6)}...`);
-    }
-
-    function addLog(msg) {
-        const l = document.getElementById('log');
-        l.innerHTML = `<div>> ${msg}</div>` + l.innerHTML;
-    }
-
-    // 3. Анимация (Матрица оживает)
-    setInterval(() => {
-        const id = Math.floor(Math.random()*256);
-        const el = document.getElementById('n'+id);
-        el.classList.add('a');
-        setTimeout(() => el.classList.remove('a'), 200);
-        
-        document.getElementById('load').innerText = `LOAD: ${Math.floor(Math.random()*100)}%`;
-        document.getElementById('p-btc').innerText = (68000 + Math.random()*200).toFixed(0);
-    }, 700);
-
-    // 4. TON Connect
-    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-        manifestUrl: 'https://ngeneticum.github.io/tonconnect-manifest.json',
-        buttonRootId: 'ton-connect-btn'
-    });
-</script>
-</body>
-</html>
+        #q-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center;
