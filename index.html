@@ -3,113 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BPX Matrix Final</title>
+    <title>BitPiX Matrix Terminal</title>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;800&display=swap" rel="stylesheet">
     <style>
         :root { --neon: #00ff9f; --gold: #ffd700; --bg: #000; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #fff; overflow: hidden; font-family: monospace; }
         
-        body, html { 
-            background: var(--bg); color: #fff; margin: 0; padding: 0;
-            width: 100%; height: 100%; overflow: hidden; font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* ГЛАВНЫЙ ЭКРАН С МАТРИЦЕЙ */
-        #viewport {
-            width: 100vw; height: 100vh; display: flex; flex-direction: column;
-            padding: 15px; position: relative; background: #000;
-        }
-
-        #matrix {
-            flex-grow: 1; display: grid; 
-            grid-template-columns: repeat(16, 1fr); gap: 2px;
-            margin-top: 40px; /* Место под заголовок */
-        }
-
-        .dot { background: #080808; border: 0.5px solid #111; aspect-ratio: 1/1; transition: 0.1s; }
-        .on { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
-
-        /* КНОПКА ВЫЗОВА ПАНЕЛИ */
-        #menu-trigger {
-            position: fixed; top: 15px; left: 15px; z-index: 9999;
-            background: var(--neon); color: #000; padding: 8px 15px;
-            font-weight: 800; font-size: 12px; cursor: pointer;
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
-        }
-
-        /* ВЫЕЗДНАЯ ПАНЕЛЬ (OVERLAY) */
-        #panel {
-            position: fixed; top: 0; left: 0; width: 300px; height: 100%;
-            background: rgba(0, 5, 10, 0.98); border-right: 1px solid var(--neon);
-            transform: translateX(-100%); transition: transform 0.3s ease;
-            z-index: 10000; padding: 25px; display: flex; flex-direction: column;
-            box-shadow: 20px 0 50px #000;
-        }
-        #panel.active { transform: translateX(0); }
-
-        /* ЭЛЕМЕНТЫ ВНУТРИ */
-        .card { border-left: 2px solid var(--neon); background: #0a0a0a; padding: 10px; margin-bottom: 15px; }
-        #log { height: 120px; overflow-y: auto; font-size: 9px; color: var(--neon); border: 1px solid #1a1a1a; padding: 5px; margin: 10px 0; }
+        /* ГЛАВНЫЙ ЭКРАН */
+        #app { width: 100vw; height: 100vh; display: flex; flex-direction: column; position: relative; }
         
-        input, button { 
-            width: 100%; background: #000; border: 1px solid var(--neon); 
-            color: var(--neon); padding: 12px; margin-top: 8px; font-family: inherit;
-        }
-        button { background: var(--neon); color: #000; font-weight: 800; cursor: pointer; }
+        /* ШАПКА */
+        header { padding: 10px 15px; display: flex; justify-content: space-between; font-size: 12px; color: var(--neon); z-index: 10; }
 
-        /* МОДАЛКА QR */
-        #qr-wrap {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            display: none; align-items: center; justify-content: center;
-            flex-direction: column; z-index: 11000;
+        /* МАТРИЦА (Центр) */
+        #matrix { 
+            flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); 
+            gap: 2px; padding: 10px; background: #000;
+        }
+        .n { background: #0a0a0a; border: 0.1px solid #151515; aspect-ratio: 1/1; }
+        .a { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+
+        /* ВЫЕЗДНАЯ ПАНЕЛЬ */
+        #side { 
+            position: fixed; top: 0; left: 0; bottom: 0; width: 280px; 
+            background: rgba(5, 5, 5, 0.98); border-right: 1px solid var(--neon);
+            transform: translateX(-100%); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000; padding: 20px; box-sizing: border-box;
+        }
+        #side.open { transform: translateX(0); }
+
+        /* КНОПКА МЕНЮ */
+        #m-btn { 
+            position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px; 
+            background: var(--neon); color: #000; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; cursor: pointer; z-index: 1100; box-shadow: 0 0 15px var(--neon);
         }
 
-        /* ПЛАВАЮЩИЙ РАДАР (ДЕКОР) */
-        #radar-dec {
-            position: fixed; bottom: 10px; right: 10px; width: 80px; height: 80px;
-            border: 1px solid rgba(0, 255, 159, 0.2); border-radius: 50%; pointer-events: none;
-        }
+        /* КОНТЕНТ ПАНЕЛИ */
+        .card { border: 1px solid #222; padding: 10px; margin-bottom: 10px; font-size: 11px; }
+        .gold { color: var(--gold); }
+        #log { height: 80px; overflow: auto; color: var(--neon); font-size: 10px; margin: 10px 0; border-top: 1px solid #222; padding-top: 5px; }
+        
+        input, button { width: 100%; padding: 10px; margin: 5px 0; background: #000; border: 1px solid var(--neon); color: #fff; font-family: monospace; }
+        button { background: var(--neon); color: #000; font-weight: bold; border: none; }
+
+        /* QR */
+        #q-ov { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 2000; }
     </style>
 </head>
 <body>
 
-<div id="menu-trigger" onclick="toggleP()">SYSTEM_UI</div>
+<div id="m-btn" onclick="document.getElementById('side').classList.toggle('open')">UI</div>
 
-<div id="panel">
+<div id="side">
     <div id="ton-connect-btn"></div>
-    
-    <div class="card" style="margin-top:20px; border-color:var(--gold)">
-        <div style="font-size:10px; opacity:0.5">MASTER_VAULT:</div>
-        <div style="font-size:9px; color:var(--gold); word-break:break-all">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
+    <div class="card" style="margin-top:15px;">
+        <div style="opacity:0.5">MASTER_VAULT:</div>
+        <div class="gold" style="word-break:break-all; font-size:9px;">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
     </div>
-
     <div class="card">
-        <div style="font-size:10px; display:flex; justify-content:space-between">
-            <span>BTC: <b id="b-p">68k</b></span>
-            <span>TON: <b>7.2</b></span>
-        </div>
-        <div style="font-size:10px; margin-top:5px">BPX_INDEX: <b style="color:var(--gold)">3.1415</b></div>
+        BTC: <span id="p-btc">68400</span> | SOL: 145<br>
+        BPX_INDEX: <span class="gold">3.1415</span>
     </div>
-
     <div id="log"></div>
-
-    <input type="text" id="dest" placeholder="TON/SOL ADDRESS">
-    <input type="number" id="val" placeholder="AMOUNT">
-    <button onclick="send()">CONFIRM WITHDRAW</button>
-    
-    <button onclick="toggleP()" style="background:#333; color:#fff; margin-top:20px; font-size:10px">CLOSE MENU</button>
+    <input type="text" id="adr" placeholder="Address">
+    <input type="number" id="amt" placeholder="Amount">
+    <button onclick="withdraw()">SEND ASSETS (2%)</button>
 </div>
 
-<div id="viewport">
-    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--neon)">
-        <span>QUANTUM_MATRIX_256</span>
-        <span id="stat">LOAD: 0%</span>
-    </div>
+<div id="app">
+    <header>
+        <div>AGENT_MATRIX_256</div>
+        <div id="load">LOAD: 0%</div>
+    </header>
     <div id="matrix"></div>
+    <div style="padding: 10px; font-size: 8px; opacity: 0.3; text-align: center;">UQC58...SYqXQ | HOUSTON_GENESIS_2048</div>
 </div>
 
-<div id="radar-dec"></div>
+<div id="q-ov" onclick="this.style.display='none'"><div id="qrc" style="background:#fff; padding:10px;"></div></div>
 
-<div id="qr-wrap" onclick="
+<script>
+    // 1. Создаем сетку
+    const m = document.getElementById('matrix');
+    for(let i=0; i<256; i++) {
+        const d = document.createElement('div');
+        d.className = 'n'; d.id = 'n'+i;
+        m.appendChild(d);
+    }
+
+    // 2. Логика транзакции
+    function withdraw() {
+        const a = document.getElementById('adr').value;
+        const v = document.getElementById('amt').value;
+        if(!a || !v) return;
+        document.getElementById('qrc').innerHTML = "";
+        new QRCode(document.getElementById('qrc'), { text: `ton://transfer/${a}?amount=${v*1e9}`, width: 180, height: 180 });
+        document.getElementById('q-ov').style.display = 'flex';
+        addLog(`TX_INIT: ${v} to ${a.slice(0,6)}...`);
+    }
+
+    function addLog(msg) {
+        const l = document.getElementById('log');
+        l.innerHTML = `<div>> ${msg}</div>` + l.innerHTML;
+    }
+
+    // 3. Анимация (Матрица оживает)
+    setInterval(() => {
+        const id = Math.floor(Math.random()*256);
+        const el = document.getElementById('n'+id);
+        el.classList.add('a');
+        setTimeout(() => el.classList.remove('a'), 200);
+        
+        document.getElementById('load').innerText = `LOAD: ${Math.floor(Math.random()*100)}%`;
+        document.getElementById('p-btc').innerText = (68000 + Math.random()*200).toFixed(0);
+    }, 700);
+
+    // 4. TON Connect
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: 'https://ngeneticum.github.io/tonconnect-manifest.json',
+        buttonRootId: 'ton-connect-btn'
+    });
+</script>
+</body>
+</html>
