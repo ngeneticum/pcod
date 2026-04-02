@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitPiX Matrix | Quantum Terminal v2.0</title>
+    <title>BitPiX Matrix | Quantum Terminal</title>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;800&family=Exo+2:wght@300;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;800&family=Exo+2:wght@300;600&display=swap" rel="stylesheet">
     
     <style>
         :root {
@@ -19,53 +19,105 @@
             margin: 0; display: flex; height: 100vh; overflow: hidden; 
         }
 
-        /* SIDEBAR И ЛОГИКА СВОРАЧИВАНИЯ */
+        /* SIDEBAR - ФИКСИРОВАННЫЙ ВЫЕЗДНОЙ */
         #sidebar { 
-            width: 380px; min-width: 380px; background: rgba(0, 5, 10, 0.98); 
-            border-right: 1px solid rgba(0, 255, 159, 0.2); padding: 20px; 
-            display: flex; flex-direction: column; z-index: 1000; 
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; box-sizing: border-box;
+            position: fixed; top: 0; bottom: 0; left: 0;
+            width: 320px; background: rgba(0, 5, 10, 0.95); 
+            border-right: 1px solid var(--neon); padding: 20px; 
+            display: flex; flex-direction: column; z-index: 2000; 
+            transition: transform 0.4s cubic-bezier(0.7, 0, 0.3, 1);
+            box-sizing: border-box; backdrop-filter: blur(10px);
         }
 
-        #sidebar.collapsed {
-            margin-left: -380px;
-        }
+        /* Состояние скрыто */
+        #sidebar.collapsed { transform: translateX(-100%); }
 
-        /* Кнопка-язычок */
+        /* Кнопка-язычок (всегда видна) */
         #sidebar-toggle {
-            position: absolute; right: -30px; top: 50%; transform: translateY(-50%);
-            width: 30px; height: 80px; background: var(--neon); color: #000;
+            position: absolute; right: -40px; top: 20px;
+            width: 40px; height: 50px; background: var(--neon); color: #000;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; font-weight: 800; font-family: var(--font-mono);
             clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
-            z-index: 1001; transition: 0.3s;
+            box-shadow: 5px 0 15px rgba(0,255,159,0.4);
         }
-        #sidebar-toggle:hover { background: var(--gold); box-shadow: 0 0 15px var(--gold); }
 
-        /* ОСНОВНОЙ КОНТЕНТ */
+        /* ГЛАВНАЯ ОБЛАСТЬ (МАТРИЦА) */
         #main { 
-            flex-grow: 1; display: flex; flex-direction: column; 
-            padding: 20px; background: #000; position: relative;
-            transition: width 0.4s ease;
+            flex-grow: 1; width: 100%; height: 100vh;
+            display: flex; flex-direction: column; 
+            padding: 20px; box-sizing: border-box; background: #000;
         }
 
-        /* МАТРИЦА АГЕНТОВ */
         #matrix-container {
             flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); 
-            gap: 4px; background: rgba(0, 255, 159, 0.02);
-            padding: 10px; border: 1px solid rgba(0, 255, 159, 0.1);
+            gap: 4px; padding: 10px; border: 1px solid rgba(0, 255, 159, 0.1);
+            background: radial-gradient(circle, #05100a 0%, #000 100%);
         }
-        .agent-node { 
-            width: 100%; aspect-ratio: 1/1; background: #05100a; 
-            border: 1px solid #0a2015; cursor: pointer; transition: 0.2s;
-        }
-        .agent-node:hover { border-color: var(--neon); background: #0a3020; }
-        .node-active { background: var(--neon) !important; box-shadow: 0 0 8px var(--neon); }
 
-        /* ЭЛЕМЕНТЫ ИНТЕРФЕЙСА */
-        .box { 
-            background: rgba(255,255,255,0.03); border-left: 2px solid var(--neon);
-            padding: 12px; margin-bottom: 10px; border-radius: 2px;
+        .agent-node { 
+            width: 100%; aspect-ratio: 1/1; background: rgba(0, 255, 159, 0.03); 
+            border: 1px solid rgba(0, 255, 159, 0.1); transition: 0.2s;
         }
-        .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: var(--font-mono); font-size: 0.7em
+        .node-active { background: var(--neon) !important; box-shadow: 0 0 12px var(--neon); }
+
+        /* ЭЛЕМЕНТЫ ПАНЕЛИ */
+        .box { background: rgba(255,255,255,0.03); border-left: 3px solid var(--neon); padding: 12px; margin-bottom: 10px; }
+        .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: var(--font-mono); font-size: 0.7em; }
+        .asset b { color: var(--neon); }
+        
+        #ledger { 
+            height: 120px; overflow-y: auto; font-family: var(--font-mono); 
+            font-size: 0.6em; color: var(--neon); background: #000;
+            border: 1px solid rgba(0,255,159,0.2); padding: 8px; margin: 10px 0;
+        }
+
+        /* РАДАР И МОДАЛКА */
+        #radar-ui {
+            position: fixed; bottom: 20px; right: 20px; width: 100px; height: 100px;
+            border: 1px solid var(--neon); border-radius: 50%; opacity: 0.4; pointer-events: none;
+        }
+        #qr-modal {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.9); z-index: 3000; display: none;
+            align-items: center; justify-content: center;
+        }
+
+        button {
+            background: var(--neon); color: #000; border: none; padding: 12px;
+            font-family: var(--font-mono); font-weight: 800; cursor: pointer; width: 100%;
+            clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+        }
+        input { width: 100%; background: #000; border: 1px solid #333; color: var(--neon); padding: 8px; margin-bottom: 5px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar" class="collapsed">
+    <div id="sidebar-toggle" onclick="toggleSidebar()"> > </div>
+    
+    <div id="ton-connect-btn"></div>
+    
+    <div class="box" style="border-color: var(--gold);">
+        <div style="font-size: 0.5em; opacity: 0.6;">GENETIC MASTER:</div>
+        <div style="font-size: 0.5em; color: var(--gold); word-break: break-all;">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
+    </div>
+
+    <div class="box">
+        <div class="asset-grid">
+            <div class="asset">BTC: <b id="p-btc">68K</b></div>
+            <div class="asset">TON: <b id="p-ton">7.2</b></div>
+            <div class="asset">SOL: <b style="color:var(--sol)">145</b></div>
+            <div class="asset">BPX: <b style="color:var(--gold)">3.14</b></div>
+        </div>
+    </div>
+
+    <div class="box" style="border-color: var(--pump);">
+        <div style="font-size: 0.6em; color: var(--pump); margin-bottom: 5px;">PUMP.FUN ($):</div>
+        <div class="asset-grid">
+            <div class="asset">PCOD: <b>0.004</b></div>
+            <div class="asset">GOS: <b>0.001</b></div>
+        </div>
+    </div>
+
+    <div id="ledger">
