@@ -3,132 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BitPiX Matrix</title>
+    <title>BPX Matrix Final</title>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;800&display=swap" rel="stylesheet">
-    
     <style>
         :root { --neon: #00ff9f; --gold: #ffd700; --bg: #000; }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
         body, html { 
             background: var(--bg); color: #fff; margin: 0; padding: 0;
-            width: 100%; height: 100%; overflow: hidden; font-family: sans-serif;
+            width: 100%; height: 100%; overflow: hidden; font-family: 'JetBrains Mono', monospace;
         }
 
-        /* МАТРИЦА НА ВЕСЬ ЭКРАН */
-        #main {
+        /* ГЛАВНЫЙ ЭКРАН С МАТРИЦЕЙ */
+        #viewport {
             width: 100vw; height: 100vh; display: flex; flex-direction: column;
-            padding: 10px; position: relative; z-index: 1;
-        }
-        #matrix-container {
-            flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr);
-            gap: 2px; border: 1px solid #111;
-        }
-        .node { background: #050505; border: 1px solid #111; aspect-ratio: 1/1; }
-        .active { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
-
-        /* ВЫЕЗДНАЯ ПАНЕЛЬ (SIDEBAR) */
-        #sidebar {
-            position: fixed; top: 0; left: 0; bottom: 0; width: 280px;
-            background: rgba(0, 0, 0, 0.95); border-right: 1px solid var(--neon);
-            transform: translateX(-100%); transition: 0.3s; z-index: 2000;
-            padding: 20px; overflow-y: auto;
-        }
-        #sidebar.open { transform: translateX(0); }
-
-        /* КНОПКА МЕНЮ */
-        #menu-btn {
-            position: fixed; left: 15px; top: 15px; width: 45px; height: 45px;
-            background: var(--neon); color: #000; border-radius: 5px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 2100; font-weight: bold; font-family: 'JetBrains Mono';
+            padding: 15px; position: relative; background: #000;
         }
 
-        /* ТЕРМИНАЛ И ИНФО */
-        .info-box { border-left: 2px solid var(--neon); padding: 8px; margin-bottom: 10px; background: #080808; font-size: 12px; }
-        #ledger { height: 100px; overflow: auto; font-family: 'JetBrains Mono'; font-size: 10px; color: var(--neon); margin: 5px 0; border: 1px solid #222; }
+        #matrix {
+            flex-grow: 1; display: grid; 
+            grid-template-columns: repeat(16, 1fr); gap: 2px;
+            margin-top: 40px; /* Место под заголовок */
+        }
+
+        .dot { background: #080808; border: 0.5px solid #111; aspect-ratio: 1/1; transition: 0.1s; }
+        .on { background: var(--neon); box-shadow: 0 0 10px var(--neon); }
+
+        /* КНОПКА ВЫЗОВА ПАНЕЛИ */
+        #menu-trigger {
+            position: fixed; top: 15px; left: 15px; z-index: 9999;
+            background: var(--neon); color: #000; padding: 8px 15px;
+            font-weight: 800; font-size: 12px; cursor: pointer;
+            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
+        }
+
+        /* ВЫЕЗДНАЯ ПАНЕЛЬ (OVERLAY) */
+        #panel {
+            position: fixed; top: 0; left: 0; width: 300px; height: 100%;
+            background: rgba(0, 5, 10, 0.98); border-right: 1px solid var(--neon);
+            transform: translateX(-100%); transition: transform 0.3s ease;
+            z-index: 10000; padding: 25px; display: flex; flex-direction: column;
+            box-shadow: 20px 0 50px #000;
+        }
+        #panel.active { transform: translateX(0); }
+
+        /* ЭЛЕМЕНТЫ ВНУТРИ */
+        .card { border-left: 2px solid var(--neon); background: #0a0a0a; padding: 10px; margin-bottom: 15px; }
+        #log { height: 120px; overflow-y: auto; font-size: 9px; color: var(--neon); border: 1px solid #1a1a1a; padding: 5px; margin: 10px 0; }
         
-        input, button { width: 100%; padding: 10px; margin-top: 5px; background: #000; border: 1px solid var(--neon); color: var(--neon); }
-        button { background: var(--neon); color: #000; font-weight: bold; }
+        input, button { 
+            width: 100%; background: #000; border: 1px solid var(--neon); 
+            color: var(--neon); padding: 12px; margin-top: 8px; font-family: inherit;
+        }
+        button { background: var(--neon); color: #000; font-weight: 800; cursor: pointer; }
 
         /* МОДАЛКА QR */
-        #qr-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+        #qr-wrap {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; z-index: 11000;
+        }
+
+        /* ПЛАВАЮЩИЙ РАДАР (ДЕКОР) */
+        #radar-dec {
+            position: fixed; bottom: 10px; right: 10px; width: 80px; height: 80px;
+            border: 1px solid rgba(0, 255, 159, 0.2); border-radius: 50%; pointer-events: none;
+        }
     </style>
 </head>
 <body>
 
-<div id="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">MENU</div>
+<div id="menu-trigger" onclick="toggleP()">SYSTEM_UI</div>
 
-<div id="sidebar">
+<div id="panel">
     <div id="ton-connect-btn"></div>
-    <div class="info-box" style="margin-top:15px; border-color: var(--gold);">
-        <div style="opacity:0.5">MASTER:</div>
-        <div style="font-size:9px; color:var(--gold)">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
-    </div>
     
-    <div class="info-box">
-        BTC: <span id="p-btc">68K</span> | TON: 7.2<br>
-        BPX: <span style="color:var(--gold)">3.1415</span>
+    <div class="card" style="margin-top:20px; border-color:var(--gold)">
+        <div style="font-size:10px; opacity:0.5">MASTER_VAULT:</div>
+        <div style="font-size:9px; color:var(--gold); word-break:break-all">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
     </div>
 
-    <div id="ledger"></div>
-
-    <input type="text" id="wa" placeholder="Wallet Address">
-    <input type="number" id="wm" placeholder="Amount">
-    <button onclick="send()">WITHDRAW (2% TAX)</button>
-    <p style="font-size:9px; opacity:0.4; margin-top:10px;">BitPiX Quantum Oracle v2.5</p>
-</div>
-
-<div id="main">
-    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--neon); margin: 30px 0 10px 0;">
-        <span>MATRIX_NODE_256</span>
-        <span id="load">LOAD: 0%</span>
+    <div class="card">
+        <div style="font-size:10px; display:flex; justify-content:space-between">
+            <span>BTC: <b id="b-p">68k</b></span>
+            <span>TON: <b>7.2</b></span>
+        </div>
+        <div style="font-size:10px; margin-top:5px">BPX_INDEX: <b style="color:var(--gold)">3.1415</b></div>
     </div>
-    <div id="matrix-container"></div>
+
+    <div id="log"></div>
+
+    <input type="text" id="dest" placeholder="TON/SOL ADDRESS">
+    <input type="number" id="val" placeholder="AMOUNT">
+    <button onclick="send()">CONFIRM WITHDRAW</button>
+    
+    <button onclick="toggleP()" style="background:#333; color:#fff; margin-top:20px; font-size:10px">CLOSE MENU</button>
 </div>
 
-<div id="qr-overlay" onclick="this.style.display='none'">
-    <div id="qrcode" style="background:#fff; padding:10px;"></div>
-    <p style="color:var(--gold); font-size:12px; margin-top:10px;">SCAN TO COMPLETE TX</p>
+<div id="viewport">
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--neon)">
+        <span>QUANTUM_MATRIX_256</span>
+        <span id="stat">LOAD: 0%</span>
+    </div>
+    <div id="matrix"></div>
 </div>
 
-<script>
-    const container = document.getElementById('matrix-container');
-    for(let i=0; i<256; i++) {
-        const d = document.createElement('div');
-        d.className = 'node'; d.id = 'n'+i;
-        container.appendChild(d);
-    }
+<div id="radar-dec"></div>
 
-    function send() {
-        const a = document.getElementById('wa').value;
-        const m = document.getElementById('wm').value;
-        if(!a || !m) return;
-        document.getElementById('qrcode').innerHTML = "";
-        new QRCode(document.getElementById('qrcode'), { text: `ton://transfer/${a}?amount=${m*1e9}`, width: 200, height: 200 });
-        document.getElementById('qr-overlay').style.display = 'flex';
-        log(`TX_SENT: ${m} TO ${a.slice(0,6)}...`);
-    }
-
-    function log(m) {
-        const l = document.getElementById('ledger');
-        l.innerHTML = `<div>> ${m}</div>` + l.innerHTML;
-    }
-
-    setInterval(() => {
-        const id = Math.floor(Math.random()*256);
-        const node = document.getElementById('n'+id);
-        node.classList.add('active');
-        setTimeout(() => node.classList.remove('active'), 200);
-        document.getElementById('load').innerText = `LOAD: ${Math.floor(Math.random()*100)}%`;
-        document.getElementById('p-btc').innerText = (68000 + Math.random()*200).toFixed(0);
-    }, 800);
-
-    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-        manifestUrl: 'https://ngeneticum.github.io/tonconnect-manifest.json',
-        buttonRootId: 'ton-connect-btn'
-    });
-</script>
-</body>
-</html>
+<div id="qr-wrap" onclick="
