@@ -3,181 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BPX Matrix | Multi-Asset Terminal</title>
+    <title>BitPiX Matrix | Quantum Terminal v2.0</title>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;800&family=Exo+2:wght@300;600&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --bg: #000205; --neon: #00ff9f; --gold: #ffd700; --sol: #8c01ff; --text: #e0f7fa;
-            --font-mono: 'JetBrains Mono', monospace;
+            --bg: #000205; --neon: #00ff9f; --gold: #ffd700; --sol: #8c01ff; --pump: #ff00ff;
+            --text: #e0f7fa; --font-mono: 'JetBrains Mono', monospace;
         }
-        body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* SIDEBAR */
-        #sidebar { width: 380px; background: rgba(0, 5, 10, 0.98); border-right: 1px solid rgba(0, 255, 159, 0.2); padding: 15px; display: flex; flex-direction: column; z-index: 100; box-shadow: 5px 0 20px #000; overflow-y: auto; }
-        .box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 10px; margin-bottom: 8px; border-radius: 2px; position: relative; }
-        .box::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 2px; background: var(--neon); }
-        .gold { color: var(--gold); }
-        
-        /* ASSET GRID */
-        .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-family: var(--font-mono); font-size: 0.7em; }
-        .asset { padding: 5px; background: rgba(0,0,0,0.4); border: 1px solid rgba(0,255,159,0.1); }
-        .asset b { color: var(--neon); }
-        .pump-fun { border-color: #ff00ff; color: #ff00ff; } /* Стиль для щиткоинов */
 
-        /* MAIN MATRIX */
-        #main { flex-grow: 1; display: flex; flex-direction: column; padding: 20px; background: #000; }
-        #matrix-view { flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; padding: 10px; background: rgba(0,255,159,0.02); border: 1px solid rgba(0,255,159,0.1); }
-        .agent-node { width: 100%; aspect-ratio: 1/1; background: #05100a; border: 1px solid #0a2015; transition: 0.2s; cursor: pointer; position: relative; }
+        body { 
+            background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; 
+            margin: 0; display: flex; height: 100vh; overflow: hidden; 
+        }
+
+        /* SIDEBAR И ЛОГИКА СВОРАЧИВАНИЯ */
+        #sidebar { 
+            width: 380px; min-width: 380px; background: rgba(0, 5, 10, 0.98); 
+            border-right: 1px solid rgba(0, 255, 159, 0.2); padding: 20px; 
+            display: flex; flex-direction: column; z-index: 1000; 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative; box-sizing: border-box;
+        }
+
+        #sidebar.collapsed {
+            margin-left: -380px;
+        }
+
+        /* Кнопка-язычок */
+        #sidebar-toggle {
+            position: absolute; right: -30px; top: 50%; transform: translateY(-50%);
+            width: 30px; height: 80px; background: var(--neon); color: #000;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-weight: 800; font-family: var(--font-mono);
+            clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
+            z-index: 1001; transition: 0.3s;
+        }
+        #sidebar-toggle:hover { background: var(--gold); box-shadow: 0 0 15px var(--gold); }
+
+        /* ОСНОВНОЙ КОНТЕНТ */
+        #main { 
+            flex-grow: 1; display: flex; flex-direction: column; 
+            padding: 20px; background: #000; position: relative;
+            transition: width 0.4s ease;
+        }
+
+        /* МАТРИЦА АГЕНТОВ */
+        #matrix-container {
+            flex-grow: 1; display: grid; grid-template-columns: repeat(16, 1fr); 
+            gap: 4px; background: rgba(0, 255, 159, 0.02);
+            padding: 10px; border: 1px solid rgba(0, 255, 159, 0.1);
+        }
+        .agent-node { 
+            width: 100%; aspect-ratio: 1/1; background: #05100a; 
+            border: 1px solid #0a2015; cursor: pointer; transition: 0.2s;
+        }
         .agent-node:hover { border-color: var(--neon); background: #0a3020; }
-        .active-node { background: var(--neon) !important; box-shadow: 0 0 10px var(--neon); }
+        .node-active { background: var(--neon) !important; box-shadow: 0 0 8px var(--neon); }
 
-        /* MODULAR SECTIONS */
-        #radar-section { position: fixed; bottom: 20px; right: 20px; width: 150px; height: 150px; background: #000; border: 1px solid var(--neon); border-radius: 50%; opacity: 0.3; transition: 0.5s; cursor: pointer; overflow: hidden; }
-        #radar-section:hover { opacity: 1; width: 300px; height: 300px; }
-        canvas#radar { width: 100%; height: 100%; }
-
-        #ledger { height: 120px; overflow-y: auto; font-family: var(--font-mono); font-size: 0.65em; color: #00ff9f; border-top: 1px solid #111; padding-top: 10px; }
-        
-        button { background: var(--neon); color: #000; border: none; padding: 10px; font-family: var(--font-mono); font-weight: 800; cursor: pointer; width: 100%; margin-top: 5px; clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%); }
-        button:hover { background: var(--gold); }
-
-        /* TABS */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 5px 15px; border-bottom: 2px solid #333; cursor: pointer; font-size: 0.8em; }
-        .tab.active { border-color: var(--neon); color: var(--neon); }
-    </style>
-</head>
-<body>
-
-<div id="sidebar">
-    <div id="ton-connect-btn" style="margin-bottom: 15px;"></div>
-    
-    <div class="box">
-        <div style="font-size: 0.6em; opacity: 0.6;">MASTER WALLET:</div>
-        <div style="font-size: 0.55em; color: var(--gold);">UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ</div>
-    </div>
-
-    <div class="box">
-        <div class="asset-grid">
-            <div class="asset">BTC: <b id="p-btc">...</b></div>
-            <div class="asset">TON: <b id="p-ton">...</b></div>
-            <div class="asset">SOL: <b id="p-sol" style="color: var(--sol)">...</b></div>
-            <div class="asset">BPX: <b class="gold" id="p-bpx">...</b></div>
-        </div>
-    </div>
-
-    <div class="box pump-fun">
-        <div style="font-size: 0.6em; color: #ff00ff; margin-bottom: 5px;">PUMP.FUN TOKENS ($):</div>
-        <div class="asset-grid">
-            <div class="asset">$PCOD: <b id="p-pcod">0.00</b></div>
-            <div class="asset">$GOS: <b id="p-gos">0.00</b></div>
-            <div class="asset">$GVM: <b id="p-gvm">0.00</b></div>
-            <div class="asset">$GNM: <b id="p-gnm">0.00</b></div>
-        </div>
-    </div>
-
-    <div id="ledger"></div>
-
-    <div class="box">
-        <input type="text" id="target-addr" placeholder="Destination Addr" style="width:100%; background:none; border:1px solid #333; color:#fff; padding:5px; margin-bottom:5px; font-size:0.7em;">
-        <button onclick="executeWithdraw()">WITHDRAW ASSETS</button>
-    </div>
-</div>
-
-<div id="main">
-    <div class="tabs">
-        <div class="tab active">AGENT_MATRIX_256</div>
-        <div class="tab" onclick="alert('Syncing to Drive...')">CLOUD_STORAGE</div>
-        <div class="tab gold" onclick="openPumpFun()">PUMP_SWAP</div>
-    </div>
-    
-    <div id="matrix-view">
-        </div>
-
-    <div id="total-stats" style="margin-top: 15px; font-family: var(--font-mono); font-size: 0.7em;">
-        SYSTEM_LOAD: <span id="load">0%</span> | GENETIC_TAX: <span class="gold" id="tax-sum">0.0000 BPX</span>
-    </div>
-</div>
-
-<div id="radar-section">
-    <canvas id="radar" width="300" height="300"></canvas>
-</div>
-
-<script>
-    const MASTER = "UQC58LnAAihOCV9ysN7iMsMb9bDh2YnICma4UNVYQ0dSYqXQ";
-    let agents = Array.from({length: 256}, (_, i) => ({ id: i, btc: 0, ton: 0, sol: 0, pcod: 0 }));
-    let totalTax = 0;
-
-    // Инициализация Матрицы
-    const matrix = document.getElementById('matrix-view');
-    for(let i=0; i<256; i++) {
-        let node = document.createElement('div');
-        node.className = 'agent-node';
-        node.id = `node-${i}`;
-        node.onclick = () => selectAgent(i);
-        matrix.appendChild(node);
-    }
-
-    // Симуляция цен
-    function updatePrices() {
-        document.getElementById('p-btc').innerText = (68000 + Math.random()*500).toFixed(0);
-        document.getElementById('p-ton').innerText = (7.25 + Math.random()*0.1).toFixed(2);
-        document.getElementById('p-sol').innerText = (145 + Math.random()*5).toFixed(2);
-        
-        // Pump.fun токены (волатильность x10)
-        document.getElementById('p-pcod').innerText = (Math.random()*0.01).toFixed(6);
-        document.getElementById('p-gos').innerText = (Math.random()*0.005).toFixed(6);
-    }
-
-    function selectAgent(id) {
-        logTx(`ACCESSING AGENT_CORE #${id}... DATA SECURED.`);
-        document.querySelectorAll('.agent-node').forEach(n => n.classList.remove('active-node'));
-        document.getElementById(`node-${id}`).classList.add('active-node');
-    }
-
-    function executeWithdraw() {
-        const addr = document.getElementById('target-addr').value;
-        if(addr.length < 10) return alert("Invalid Address");
-        logTx(`REDIRECTING 2% TO MASTER ${MASTER.substring(0,6)}...`);
-        alert(`Transaction signed. Fee sent to Genetic Master.`);
-    }
-
-    function logTx(m) {
-        const l = document.getElementById('ledger');
-        l.innerHTML = `<div>> ${m}</div>` + l.innerHTML;
-    }
-
-    // Радар в углу
-    function drawRadar() {
-        const ctx = document.getElementById('radar').getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0.1)';
-        ctx.fillRect(0,0,300,300);
-        for(let i=0; i<5; i++) {
-            ctx.beginPath();
-            ctx.strokeStyle = '#00ff9f';
-            ctx.arc(150, 150, Math.random()*140, 0, Math.PI*2);
-            ctx.stroke();
+        /* ЭЛЕМЕНТЫ ИНТЕРФЕЙСА */
+        .box { 
+            background: rgba(255,255,255,0.03); border-left: 2px solid var(--neon);
+            padding: 12px; margin-bottom: 10px; border-radius: 2px;
         }
-    }
-
-    setInterval(() => {
-        updatePrices();
-        drawRadar();
-        if(Math.random() > 0.8) {
-            const randAgent = Math.floor(Math.random()*256);
-            document.getElementById(`node-${randAgent}`).style.background = '#00ff9f';
-            setTimeout(() => document.getElementById(`node-${randAgent}`).style.background = '#05100a', 200);
-        }
-        document.getElementById('load').innerText = Math.floor(Math.random()*100) + "%";
-    }, 500);
-
-    // TON CONNECT
-    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-        manifestUrl: 'https://ngeneticum.github.io/tonconnect-manifest.json',
-        buttonRootId: 'ton-connect-btn'
-    });
-</script>
-</body>
-</html>
+        .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-family: var(--font-mono); font-size: 0.7em
